@@ -100,11 +100,12 @@ function Post(svg, data, x, y) {
     this._init = function(data) {
         this.id = data.id;
         this.label = data.label;
-        this.tags = data.tags;
+        this.tags = [];
         var tagLength = data.tags.length;
         this.radius = tagLength > 5 ? tagLength * 2 : 10;
         this.data = data;
         this._appendToSVG();
+        this._appendTags(data.tags);
         this._setupEvents();
     };
     // <---- Constructor
@@ -132,6 +133,55 @@ function Post(svg, data, x, y) {
         return GRAPHIC_PREFIX + this.id;
     };
 
+    this._appendTags = function(tags) {
+        this.tags = [];
+        if (tags.length == 0)
+            return;
+        var tagDegree = parseInt(360 / tags.length);
+        var distanceFromCenter = this.radius * 4;
+        var tag;
+        var alpha = 0; // Degree position around the center 
+        var tagX, tagY, relAlpha, beta, gamma = 90;
+        for (i in tags) {
+            tag = tags[i];
+            if (alpha <= 90)
+                relAlpha = alpha;
+            else if (alpha <= 180)
+                relAlpha = 180 - alpha;
+            else if (alpha <= 270)
+                relAlpha = 90 - (270 - alpha);
+            else
+                relAlpha = 360 - alpha;
+
+            beta = 180 - gamma - relAlpha;
+            if (relAlpha == 0)
+                tagX = distanceFromCenter;
+            else
+                tagX = distanceFromCenter * Math.sin(toRadians(beta))  / Math.sin(toRadians(gamma));
+            if (relAlpha == 90)
+                tagY = distanceFromCenter;
+            else
+                tagY = distanceFromCenter * Math.sin(toRadians(relAlpha)) / Math.sin(toRadians(gamma));
+
+            if (alpha > 90 && alpha < 270)
+                tagX = -tagX;
+            if (alpha <= 180)
+                tagY = -tagY;
+
+            tagX += this.x;
+            tagY += this.y;
+            this.tags.push(new Tag(
+                this.svg,
+                {id: this.id + tag, label: tag},
+                this.radius,
+                this.radius,
+                tagX,
+                tagY
+            ));
+            alpha += tagDegree;
+        }
+    }
+
     this._appendToSVG = function() {
         this.circle = this.svg.append("circle")
             .attr("cx", this.x)
@@ -149,6 +199,21 @@ function Post(svg, data, x, y) {
                 .duration(MOVE_TO_DURATION);
         }
         circle.attr("cx", x).attr("cy", y);
+        var dx, dy; 
+        var tags = this.tags;
+        var tag;
+        for (i in tags) {
+            tag = tags[i];
+            dx = this.x - tag.x;
+            dy = this.y - tag.y;
+            tag.moveTo(
+                x + dx,
+                y + dy,
+                animated
+            );
+        }
+        this.x = x;
+        this.y = y;
     };
 
     this.beat = function() {
@@ -173,7 +238,7 @@ function Post(svg, data, x, y) {
 }
 
 var data = [
-    {id: "xxx-1", label: "foo 1", tags: ['python', 'django']},
+    {id: "xxx-1", label: "foo 1", tags: ['python', 'django', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8']},
     {id: "xxx-2", label: "foo 1", tags: ['javascript', 'jquery', 'd3.js']},
     {id: "xxx-3", label: "foo 1", tags: ['python', 'django', 'haystack']},
     {id: "xxx-4", label: "foo 1", tags: ['python', 'pyramind']},
