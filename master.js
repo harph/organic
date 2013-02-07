@@ -2,6 +2,82 @@ var mysvg = d3.select("#mysvg")
     .attr('width', window.innerWidth)
     .attr('height', window.innerHeight);
 
+function Tag(svg, data, width, height, x, y) {
+    // Constants
+    var GRAPHIC_PREFIX = "POST_";
+    var CSS_CLASS = "tag";
+    var MOVE_TO_DURATION = 1000;
+    
+    // Data attributes
+    this.id;
+    this.label;
+    this.data;
+
+    // Graphic attributes 
+    this.svg = svg;
+    this.width = width;
+    this.height = height;
+    this.x = x || 0;
+    this.y = y || 0;
+    this.polygonPoints = {};
+    this.polygon;
+    
+    // Constructor ---->
+    this._init = function(data) {
+        this.id = data.id;
+        this.label = data.label;
+        this.data = data;
+        this._generatePoints();
+        this._appendToSVG();
+    };
+    // <---- Constructor
+
+    // Graphic operations ---->
+    this._generatePoints = function() {
+        this.polygonPoints.x1 = this.x;
+        this.polygonPoints.y1 = this.y - this.height / 2;
+        this.polygonPoints.x2 = this.x - width / 2;
+        this.polygonPoints.y2 = this.polygonPoints.y1 + this.height;
+        this.polygonPoints.x3 = this.polygonPoints.x2 + this.width;
+        this.polygonPoints.y3 = this.polygonPoints.y2;    
+    };
+
+    this._getSVGPoints = function() {
+        var points = this.polygonPoints;
+        var svgPoints = points.x1 + "," + points.y1;
+        svgPoints += " " + points.x2 + "," + points.y2;
+        svgPoints += " " + points.x3 + "," + points.y3;
+        return svgPoints;  
+    };
+
+    this._getGraphicId = function() {
+        return GRAPHIC_PREFIX + this.id;
+    };
+
+    this._appendToSVG = function() {
+        var svgPoints = this._getSVGPoints();
+        this.polygon = this.svg.append("polygon")
+            .attr("points", svgPoints)
+            .attr("id", this._getGraphicId())
+            .attr("class", CSS_CLASS);
+
+    };
+
+    this.moveTo = function(x, y, animated) {
+        animated = animated || false;
+        this.x = x;
+        this.y = y;
+        this._generatePoints();
+        var polygon = this.polygon;
+        if (animated) {
+            polygon = polygon.transition().duration(MOVE_TO_DURATION);    
+        }
+        polygon.attr('points', this._getSVGPoints());
+    };
+    // <---- Graphics operations
+    this._init(data);
+}
+
 function Post(svg, data, x, y) {
     // Constants
     var GRAPHIC_PREFIX = "POST_";
@@ -15,9 +91,9 @@ function Post(svg, data, x, y) {
     this.data;
 
     // Graphic attributes
+    this.svg = svg;
     this.x = x || 0;
     this.y = y || 0;
-    this.svg = svg;
     this.circle;
 
     // Constructor ---->
@@ -68,9 +144,10 @@ function Post(svg, data, x, y) {
     this.moveTo = function(x, y, animated) {
         animated = animated || false;
         var circle = this.circle;
-        if (animated)
+        if (animated){
             circle = circle.transition()
                 .duration(MOVE_TO_DURATION);
+        }
         circle.attr("cx", x).attr("cy", y);
     };
 
