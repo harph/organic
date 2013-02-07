@@ -21,7 +21,7 @@ function Tag(svg, data, width, height, x, y) {
     this.y = y || 0;
     this.polygonPoints = {};
     this.polygon;
-    
+
     // Constructor ---->
     this._init = function(data) {
         this.id = data.id;
@@ -138,9 +138,11 @@ function Post(svg, data, x, y) {
         if (tags.length == 0)
             return;
         var tagDegree = parseInt(360 / tags.length);
-        var distanceFromCenter = this.radius * 4;
+        var distanceFromCenter = this.radius * 3;
         var tag;
         var alpha = 0; // Degree position around the center 
+        var postX = this.x;
+        var postY = this.y;
         var tagX, tagY, relAlpha, beta, gamma = 90;
         for (i in tags) {
             tag = tags[i];
@@ -167,9 +169,9 @@ function Post(svg, data, x, y) {
                 tagX = -tagX;
             if (alpha <= 180)
                 tagY = -tagY;
-
-            tagX += this.x;
-            tagY += this.y;
+            
+            tagX += postX;
+            tagY += postY;
             this.tags.push(new Tag(
                 this.svg,
                 {id: this.id + tag, label: tag},
@@ -180,7 +182,7 @@ function Post(svg, data, x, y) {
             ));
             alpha += tagDegree;
         }
-    }
+    };
 
     this._appendToSVG = function() {
         this.circle = this.svg.append("circle")
@@ -348,8 +350,8 @@ function Area(x0, y0, x1, y1, verticalSplit) {
 
 
 var x0 = 0, y0 = 0;
-var svgWidth = mysvg.attr("width");
-var svgHeight = mysvg.attr("height");
+var svgWidth = parseInt(mysvg.attr("width"));
+var svgHeight = parseInt(mysvg.attr("height"));
 
 // areas: queue of spaces where I can put the posts.
 var areas = [new Area(0, 0, svgWidth, svgHeight, true)];
