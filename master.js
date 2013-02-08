@@ -2,7 +2,7 @@ var mysvg = d3.select("#mysvg")
     .attr('width', window.innerWidth)
     .attr('height', window.innerHeight);
 
-function Tag(svg, data, width, height, x, y) {
+function Tag(svg, data, width, height, x, y, degrees) {
     // Constants
     var GRAPHIC_PREFIX = "POST_";
     var CSS_CLASS = "tag";
@@ -19,6 +19,7 @@ function Tag(svg, data, width, height, x, y) {
     this.height = height;
     this.x = x || 0;
     this.y = y || 0;
+    this.degrees = degrees || 0;
     this.polygonPoints = {};
     this.polygon;
 
@@ -50,6 +51,10 @@ function Tag(svg, data, width, height, x, y) {
         return svgPoints;  
     };
 
+    this._getSVGTransform = function() {
+        return "rotate(" + (90 - this.degrees) + "," + this.x + "," + this.y + ")";  
+    };
+
     this._getGraphicId = function() {
         return GRAPHIC_PREFIX + this.id;
     };
@@ -72,8 +77,27 @@ function Tag(svg, data, width, height, x, y) {
         if (animated) {
             polygon = polygon.transition().duration(MOVE_TO_DURATION);    
         }
-        polygon.attr('points', this._getSVGPoints());
+        polygon.attr('points', this._getSVGPoints())
+            .attr("transform", this._getSVGTransform());
     };
+
+    this.beat = function() {
+        var polygon = this.polygon;
+        var inc = -2, delay = 0;
+        for (i = 0; i < 4; i++){
+            this.x += inc;
+            this.y += inc;
+            this.width += inc;
+            this.height += inc;
+            polygon.transition(50 * (i + 1))
+                .delay(delay)
+                .attr('points', this._getSVGPoints())
+                .attr("transform", this._getSVGTransform());
+            inc *= -1;
+            delay += 50 * (i + 1);
+        }
+    };
+
     // <---- Graphics operations
     this._init(data);
 }
@@ -178,7 +202,8 @@ function Post(svg, data, x, y) {
                 this.radius,
                 this.radius,
                 tagX,
-                tagY
+                tagY,
+                alpha
             ));
             alpha += tagDegree;
         }
@@ -221,6 +246,7 @@ function Post(svg, data, x, y) {
     this.beat = function() {
         var circle = this.circle;
         var inc = -2, delay = 0;
+        var tags = this.tags;
         for (i = 0; i < 4; i++){
             circle.transition(50 * (i + 1))
                 .delay(delay)
@@ -228,11 +254,13 @@ function Post(svg, data, x, y) {
             inc *= -1;
             delay += 50 * (i + 1);
         }
+        for(i in tags) {
+            tags[i].beat();    
+        }
         circle.transition()
             .duration(500)
             .delay(delay)
             .attr("r", this.radius);
-
     };
     // <---- Graphics operations
 
