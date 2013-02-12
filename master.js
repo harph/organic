@@ -102,7 +102,7 @@ function Tag(svg, data, width, height, x, y, degrees) {
     this._init(data);
 }
 
-function Post(svg, data, x, y) {
+function DataObject(svg, data, x, y) {
     // Constants
     var GRAPHIC_PREFIX = "POST_";
     var CSS_CLASS = "post";
@@ -241,6 +241,7 @@ function Post(svg, data, x, y) {
         }
         this.x = x;
         this.y = y;
+        return this;
     };
 
     this.beat = function() {
@@ -261,11 +262,43 @@ function Post(svg, data, x, y) {
             .duration(500)
             .delay(delay)
             .attr("r", this.radius);
+        return this;
     };
     // <---- Graphics operations
 
     this._init(data);
 }
+
+
+function DataLayer() {
+    
+    // Data Attributes
+    this.dataObjects = [];
+    this.tagIndex = {};
+
+    // Constructor ---->
+    this._init = function() {};
+    // <---- Constructor
+
+    // Operations ---->
+    this.addDataObject = function(dataObject) {
+        this.dataObjects.push(dataObject);
+        var tagLabel;
+        var tagIndex = this.tagIndex;
+        for (i = 0; i < dataObject.tags.length; i++) {
+            tagLabel = dataObject.tags[i].label;
+            if (!(tagLabel in tagIndex)) {
+                tagIndex[tagLabel] = [];
+            }
+            tagIndex[tagLabel].push(dataObject);
+        }
+        return this;
+    };
+    // <---- Operations
+
+    this._init();
+}
+
 
 var data = [
     {id: "xxx-1", label: "foo 1", tags: ['python', 'django', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8']},
@@ -385,14 +418,18 @@ var svgHeight = parseInt(mysvg.attr("height"));
 var areas = [new Area(0, 0, svgWidth, svgHeight, true)];
 var createdPosts = 0;
 var area;
+var dataLayer = new DataLayer();
 
+
+var dataObject;
 while (createdPosts < data.length) {
     area = areas.shift();
-    new Post(mysvg, data[createdPosts], x0, y0).moveTo(
+    dataObject = new DataObject(mysvg, data[createdPosts], x0, y0).moveTo(
         area.getCenterX(),
         area.getCenterY(),
         true
     );
+    dataLayer.addDataObject(dataObject);
     areas = areas.concat(area.split());
     createdPosts++;
     if (x0 == 0 && y0 == 0)
