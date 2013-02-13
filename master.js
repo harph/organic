@@ -2,7 +2,7 @@ var mysvg = d3.select("#mysvg")
     .attr('width', window.innerWidth)
     .attr('height', window.innerHeight);
 
-function Tag(svg, data, width, height, x, y, degrees) {
+function Tag(svg, data, x, y, radius) {
     // Constants
     var GRAPHIC_PREFIX = "POST_";
     var CSS_CLASS = "tag";
@@ -15,90 +15,54 @@ function Tag(svg, data, width, height, x, y, degrees) {
 
     // Graphic attributes 
     this.svg = svg;
-    this.width = width;
-    this.height = height;
     this.x = x || 0;
     this.y = y || 0;
-    this.degrees = degrees || 0;
-    this.polygonPoints = {};
-    this.polygon;
+    this.radius = radius > 1 ? radius : 2;
+    this.circle;
 
     // Constructor ---->
     this._init = function(data) {
         this.id = data.id;
         this.label = data.label;
         this.data = data;
-        this._generatePoints();
         this._appendToSVG();
     };
     // <---- Constructor
 
     // Graphic operations ---->
-    this._generatePoints = function() {
-        this.polygonPoints.x1 = this.x;
-        this.polygonPoints.y1 = this.y - this.height / 2;
-        this.polygonPoints.x2 = this.x - width / 2;
-        this.polygonPoints.y2 = this.polygonPoints.y1 + this.height;
-        this.polygonPoints.x3 = this.polygonPoints.x2 + this.width;
-        this.polygonPoints.y3 = this.polygonPoints.y2;    
-    };
-
-    this._getSVGPoints = function() {
-        var points = this.polygonPoints;
-        var svgPoints = points.x1 + "," + points.y1;
-        svgPoints += " " + points.x2 + "," + points.y2;
-        svgPoints += " " + points.x3 + "," + points.y3;
-        return svgPoints;  
-    };
-
-    this._getSVGTransform = function() {
-        return "rotate(" + (90 - this.degrees) + "," + this.x + "," + this.y + ")";  
-    };
-
     this._getGraphicId = function() {
         return GRAPHIC_PREFIX + this.id;
     };
 
     this._appendToSVG = function() {
-        var svgPoints = this._getSVGPoints();
-        this.polygon = this.svg.append("polygon")
-            .attr("points", svgPoints)
+        this.circle = this.svg.append("circle")
+            .attr("cx", this.x)
+            .attr("cy", this.y)
+            .attr("r", this.radius)
             .attr("id", this._getGraphicId())
             .attr("class", CSS_CLASS);
-
     };
 
     this.moveTo = function(x, y, animated) {
         animated = animated || false;
         this.x = x;
         this.y = y;
-        this._generatePoints();
-        var polygon = this.polygon;
+        var circle = this.circle;
         if (animated) {
-            polygon = polygon.transition().duration(MOVE_TO_DURATION);    
+            circle = circle.transition().duration(MOVE_TO_DURATION);
         }
-        polygon.attr('points', this._getSVGPoints())
-            .attr("transform", this._getSVGTransform());
+        circle.attr("cx", x)
+            .attr("cy", y);
+        return this;
     };
 
     this.beat = function() {
-        var polygon = this.polygon;
-        var inc = -2, delay = 0;
-        for (i = 0; i < 4; i++){
-            this.x += inc;
-            this.y += inc;
-            this.width += inc;
-            this.height += inc;
-            polygon.transition(50 * (i + 1))
-                .delay(delay)
-                .attr('points', this._getSVGPoints())
-                .attr("transform", this._getSVGTransform());
-            inc *= -1;
-            delay += 50 * (i + 1);
-        }
+        var circle = this.circle;
+        // TODO: find/develop and beat algorithm.
+        return this;
     };
 
-    // <---- Graphics operations
+    // <---- Graphic operations
     this._init(data);
 }
 
@@ -118,7 +82,10 @@ function DataObject(svg, data, x, y) {
     this.svg = svg;
     this.x = x || 0;
     this.y = y || 0;
+    this.radius;
+    this.relationRadius;
     this.circle;
+    this.relationCircle;
 
     // Constructor ---->
     this._init = function(data) {
@@ -127,6 +94,7 @@ function DataObject(svg, data, x, y) {
         this.tags = [];
         var tagLength = data.tags.length;
         this.radius = tagLength > 5 ? tagLength * 2 : 10;
+        this.relationRadius = this.radius * 3;
         this.data = data;
         this._appendToSVG();
         this._appendTags(data.tags);
@@ -138,21 +106,30 @@ function DataObject(svg, data, x, y) {
     this._setupEvents = function() {
         var circle = this.circle;
         var objContext = this;
+        circle.call(d3.behavior.drag()
+            .on("drag", function() {
+                objContext.onDrag(objContext);
+            })
+        );
         circle.on(
-            'click',
-            function(e) {
-                objContext.onClick(e, objContext);
+            "click",
+            function() {
+                objContext.onClick(objContext);
             },
             false
         );
     };
-    
-    this.onClick = function(e, objContext) {
+
+    this.onDrag = function(objContext) {
+        objContext.moveTo(d3.event.x, d3.event.y);
+    };
+
+    this.onClick = function(objContext) {
         objContext.beat();
     };
     // <---- Events
 
-    // Graphics operations ---->
+    // Graphic operations ---->
     this._getGraphicId = function() {
         return GRAPHIC_PREFIX + this.id;
     };
@@ -162,11 +139,11 @@ function DataObject(svg, data, x, y) {
         if (tags.length == 0)
             return;
         var tagDegree = parseInt(360 / tags.length);
-        var distanceFromCenter = this.radius * 3;
+        var distanceFromCenter = this.radius * 2;
         var tag;
         var alpha = 0; // Degree position around the center 
-        var postX = this.x;
-        var postY = this.y;
+        var dataX = this.x;
+        var dataY = this.y;
         var tagX, tagY, relAlpha, beta, gamma = 90;
         for (i in tags) {
             tag = tags[i];
@@ -194,16 +171,14 @@ function DataObject(svg, data, x, y) {
             if (alpha <= 180)
                 tagY = -tagY;
             
-            tagX += postX;
-            tagY += postY;
+            tagX += dataX;
+            tagY += dataY;
             this.tags.push(new Tag(
                 this.svg,
                 {id: this.id + tag, label: tag},
-                this.radius,
-                this.radius,
                 tagX,
                 tagY,
-                alpha
+                this.radius / 4
             ));
             alpha += tagDegree;
         }
@@ -216,6 +191,17 @@ function DataObject(svg, data, x, y) {
             .attr("r", this.radius)
             .attr("id", this._getGraphicId())
             .attr("class", CSS_CLASS);
+    };
+
+    this.drawRelationCircle = function() {
+        if (this.relationCircle == null) {
+            this.relationCircle = this.svg.append("circle")
+                .attr("cx", this.x)
+                .attr("cy", this.y)
+                .attr("r", this.relationRadius)
+                .attr("class", "relationship");
+        }
+        return this;
     };
 
     this.moveTo = function(x, y, animated) {
@@ -256,7 +242,7 @@ function DataObject(svg, data, x, y) {
             delay += 50 * (i + 1);
         }
         for(i in tags) {
-            tags[i].beat();    
+            tags[i].beat();
         }
         circle.transition()
             .duration(500)
@@ -264,17 +250,20 @@ function DataObject(svg, data, x, y) {
             .attr("r", this.radius);
         return this;
     };
-    // <---- Graphics operations
+    // <---- Graphic operations
 
     this._init(data);
 }
 
 
-function DataLayer() {
-    
+function DataLayer(svg) {
+
     // Data Attributes
     this.dataObjects = [];
     this.tagIndex = {};
+
+    // Graphic attributes
+    this.svg = svg;
 
     // Constructor ---->
     this._init = function() {};
@@ -296,8 +285,100 @@ function DataLayer() {
     };
     // <---- Operations
 
+    // Graphic operations ---->
+    this._drawRelationshipBetweenObjects = function(dataObj1, dataObj2) {
+        dataObj1.drawRelationCircle();
+        dataObj2.drawRelationCircle();
+        var x1, x2, y1, y2;
+        x1 = dataObj1.x;
+        y1 = dataObj1.y;
+        x2 = dataObj2.x;
+        y2 = dataObj2.y;
+        if (x1 < x2) {
+            x1 = dataObj1.x + dataObj1.relationRadius;
+            x2 = dataObj2.x - dataObj2.relationRadius;
+        } else if (x1 > x2){
+            x1 = dataObj1.x - dataObj1.relationRadius;
+            x2 = dataObj2.x + dataObj2.relationRadius;
+        }
+        if (y1 < y2) {
+            y1 = dataObj1.y + dataObj1.relationRadius;
+            y2 = dataObj2.y - dataObj2.relationRadius;
+        } else if (y1 > y2){
+            y1 = dataObj1.y - dataObj1.relationRadius;
+            y2 = dataObj2.y + dataObj2.relationRadius;
+        }
+        this.svg.append('line')
+            .attr('x1', x1)
+            .attr('y1', y1)
+            .attr('x2', x2)
+            .attr('y2', y2)
+            .attr('class', 'relationship');
+    };
+
+    this.drawRelationships = function() {
+        var tagIndex = this.tagIndex;
+        var dataObjects = this.dataObjects;
+        var tagLabel;
+        var dataObj2;
+        for (dataObj in dataObjects) {
+            for (tag in dataObj.tags) {
+                tagLabel = dataObj.tags[tag].label;
+                for (i = 0; i < tagIndex.tagLabel.length; i++) {
+                    dataObj2 = tagIndex.tagLabel[i];
+                    break;
+                }
+            }
+        }
+    };
+    // <---- Graphic operations
+
     this._init();
 }
+
+
+function Area(x0, y0, x1, y1, verticalSplit) {
+    this.x0 = x0;
+    this.y0 = y0;
+    this.x1 = x1;
+    this.y1 = y1;
+    this.verticalSplit = verticalSplit; // vertical split?
+
+    this.getCenterX = function() {
+        return this.x0 + (this.x1 - this.x0) / 2;
+    };
+
+    this.getCenterY = function() {
+        return this.y0 + (this.y1 - this.y0) / 2;
+    };
+
+    this.split = function() {
+        var area1, area2;
+        var isVertical = this.verticalSplit;
+        if (isVertical) {
+            var centerX = this.getCenterX();
+            area1 = new Area(this.x0, this.y0, centerX, this.y1, !isVertical);
+            area2 = new Area(centerX, this.y0, this.x1, this.y1, !isVertical);
+        } else {
+            var centerY = this.getCenterY();
+            area1 = new Area(this.x0, this.y0, this.x1, centerY, !isVertical);
+            area2 = new Area(this.x0, centerY, this.x1, this.y1, !isVertical);
+        }
+        return [area1, area2];
+    };
+}
+
+
+var x0 = 0, y0 = 0;
+var svgWidth = parseInt(mysvg.attr("width"));
+var svgHeight = parseInt(mysvg.attr("height"));
+
+// areas: queue of spaces where I can put the posts.
+var areas = [new Area(0, 0, svgWidth, svgHeight, true)];
+var createdPosts = 0;
+var area;
+var dataLayer = new DataLayer(mysvg);
+var dataObject;
 
 
 var data = [
@@ -377,51 +458,6 @@ var data = [
 ];
 
 
-
-function Area(x0, y0, x1, y1, verticalSplit) {
-    this.x0 = x0;
-    this.y0 = y0;
-    this.x1 = x1;
-    this.y1 = y1;
-    this.verticalSplit = verticalSplit; // vertical split?
-
-    this.getCenterX = function() {
-        return this.x0 + (this.x1 - this.x0) / 2;
-    };
-
-    this.getCenterY = function() {
-        return this.y0 + (this.y1 - this.y0) / 2;
-    };
-
-    this.split = function() {
-        var area1, area2;
-        var isVertical = this.verticalSplit;
-        if (isVertical) {
-            var centerX = this.getCenterX();
-            area1 = new Area(this.x0, this.y0, centerX, this.y1, !isVertical);
-            area2 = new Area(centerX, this.y0, this.x1, this.y1, !isVertical);
-        } else {
-            var centerY = this.getCenterY();
-            area1 = new Area(this.x0, this.y0, this.x1, centerY, !isVertical);
-            area2 = new Area(this.x0, centerY, this.x1, this.y1, !isVertical);
-        }
-        return [area1, area2];
-    };
-}
-
-
-var x0 = 0, y0 = 0;
-var svgWidth = parseInt(mysvg.attr("width"));
-var svgHeight = parseInt(mysvg.attr("height"));
-
-// areas: queue of spaces where I can put the posts.
-var areas = [new Area(0, 0, svgWidth, svgHeight, true)];
-var createdPosts = 0;
-var area;
-var dataLayer = new DataLayer();
-
-
-var dataObject;
 while (createdPosts < data.length) {
     area = areas.shift();
     dataObject = new DataObject(mysvg, data[createdPosts], x0, y0).moveTo(
