@@ -294,20 +294,57 @@ function DataLayer(svg) {
         y1 = dataObj1.y;
         x2 = dataObj2.x;
         y2 = dataObj2.y;
-        if (x1 < x2) {
-            x1 = dataObj1.x + dataObj1.relationRadius;
-            x2 = dataObj2.x - dataObj2.relationRadius;
-        } else if (x1 > x2){
-            x1 = dataObj1.x - dataObj1.relationRadius;
-            x2 = dataObj2.x + dataObj2.relationRadius;
+
+        if (x1 == x2) {
+            // infinite slope
+            if (y1 < y2) {
+                y1 = dataObj1.y + dataObj1.relationRadius;
+                y2 = dataObj2.y - dataObj2.relationRadius;
+            } else if (y1 > y2){
+                y1 = dataObj1.y - dataObj1.relationRadius;
+                y2 = dataObj2.y + dataObj2.relationRadius;
+            }
+        } else if (y1 == y2) {
+            // slope = 0
+            if (x1 < x2) {
+                x1 = dataObj1.x + dataObj1.relationRadius;
+                x2 = dataObj2.x - dataObj2.relationRadius;
+            } else if (x1 > x2){
+                x1 = dataObj1.x - dataObj1.relationRadius;
+                x2 = dataObj2.x + dataObj2.relationRadius;
+            }
+        } else {
+            var slope = (y2 - y1) / (x2 - x1);
+            var alpha = Math.atan(slope);
+
+            diffY1 = Math.abs(dataObj1.relationRadius * Math.sin(alpha) / Math.sin(90));
+            diffX1 = Math.sqrt(Math.pow(dataObj1.relationRadius, 2) - Math.pow(diffY1, 2));
+
+            diffY2 = Math.abs(dataObj2.relationRadius * Math.sin(alpha) / Math.sin(90));
+            diffX2 = Math.sqrt(Math.pow(dataObj2.relationRadius, 2) - Math.pow(diffY2, 2));
+
+
+            console.log("1 r: " + dataObj1.relationRadius + " diffX: " + diffX1 + " " + diffY1 + " x: " + x1 + " y: " + y1); 
+            console.log("2 r: " + dataObj2.relationRadius + " diffX: " + diffX2 + " " + diffY2 + " x: " + x2 + " y: " + y2); 
+
+            if (x1 < x2) {
+                x1 += diffX1;
+                x2 -= diffX2;
+            } else {
+                x1 -= diffX1;
+                x2 += diffX2;
+            }
+
+            if (y1 < y2) {
+                y1 += diffY1;
+                y2 -= diffY2;
+            } else {
+                y1 -= diffY1;
+                y2 += diffY2;
+            }
+
         }
-        if (y1 < y2) {
-            y1 = dataObj1.y + dataObj1.relationRadius;
-            y2 = dataObj2.y - dataObj2.relationRadius;
-        } else if (y1 > y2){
-            y1 = dataObj1.y - dataObj1.relationRadius;
-            y2 = dataObj2.y + dataObj2.relationRadius;
-        }
+
         this.svg.append('line')
             .attr('x1', x1)
             .attr('y1', y1)
@@ -320,16 +357,23 @@ function DataLayer(svg) {
         var tagIndex = this.tagIndex;
         var dataObjects = this.dataObjects;
         var tagLabel;
-        var dataObj2;
-        for (dataObj in dataObjects) {
-            for (tag in dataObj.tags) {
-                tagLabel = dataObj.tags[tag].label;
-                for (i = 0; i < tagIndex.tagLabel.length; i++) {
-                    dataObj2 = tagIndex.tagLabel[i];
-                    break;
+        var dataObj1, dataObj2;
+        for (i in dataObjects) {
+            dataObj1 = dataObjects[i];
+            for (j in dataObj1.tags) {
+                tagLabel = dataObj1.tags[j].label;
+                tagDataObject = tagIndex[tagLabel];
+                for (k in tagDataObject) {
+                    dataObj2 = tagDataObject[k];
+                    if (dataObj1 == dataObj2)
+                        continue;
+                    this._drawRelationshipBetweenObjects(dataObj1, dataObj2);
                 }
+                break;
             }
+            break;
         }
+        
     };
     // <---- Graphic operations
 
@@ -479,3 +523,5 @@ while (createdPosts < data.length) {
         y0 = 0;
     }
 }
+dataLayer.drawRelationships();
+
